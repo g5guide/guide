@@ -10,6 +10,13 @@
 
 :::
 
+::: tip
+
+- v5.5.8.3.2 버전 미만에서는 Replace Hook(`add_replace()`)을 사용할 때는 전달받을 파라미터의 갯수를 반드시 지정해야 한다
+  - v5.5.8.3.2 부터는 생략해도 항상 1개의 파라미터를 받는다
+
+:::
+
 ## 코어
 
 ### common_header <Badge type="info" text="Event" />
@@ -39,9 +46,61 @@ add_event('common_header', function () {
 
 ### alert <Badge type="info" text="Event" />
 
+그누보드 동작 중 오류를 표시하는 `alert()` 함수가 실행될 때 호출된다.
+
+```php
+/**
+ * @param string $msg 메시지 문자열
+ * @param string $url 이동할 페이지 URL
+ * @param bool $error 오류 여부
+ * @param bool $post POST Method
+ */
+add_event('alert', function ($msg, $url, $error, $post) {
+    // 예시: JSON 응답 요청 시 HTML 반환 대신 JSON 응답 처리
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=UTF-8');
+    }
+    echo json_encode(['msg' => $msg, 'error' => $error], JSON_PRETTY_PRINT);
+    exit;
+}, G5_HOOK_DEFAULT_PRIORITY, 4);
+```
+
+::: info 활용 예
+
+- 요청에 따라 응답 유형을 변경하여 반환
+- 로그메시지 기록
+
+:::
+
 ### alert_close <Badge type="info" text="Event" />
 
-### 환경설정
+그누보드 동작 중 오류를 표시하는 `alert_close()` 함수가 실행될 때 호출된다.
+
+```php
+/**
+ * @param string $msg 메시지 문자열
+ * @param bool $error 오류 여부
+ */
+add_event('alert_close', function ($msg, $error) {
+    // 예시: JSON 응답 요청 시 HTML 반환 대신 JSON 응답 처리
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=UTF-8');
+    }
+    echo json_encode(['msg' => $msg, 'error' => $error], JSON_PRETTY_PRINT);
+    exit;
+}, G5_HOOK_DEFAULT_PRIORITY, 2);
+```
+
+::: info 활용 예
+
+- 요청에 따라 응답 유형을 변경하여 반환
+- 로그메시지 기록
+
+:::
+
+### get_permission_debug_show <Badge type="info" text="Replace" />
+
+## 환경설정
 
 ::: warning 사용하지 않는 것을 권장
 환경설정을 로드할 때 실행되는 `get_config`, `get_config_cache` Hook은 사용하지 않는 것을 권장한다.
@@ -128,6 +187,24 @@ add_event('tail_sub', function () {
 테마에 따라 Hook 실행 코드가 없을 수 있으므로 이 Hook의 실행이 보장되지는 않는다.
 :::
 
+### html_process_css_files <Badge type="info" text="Replace" />
+
+```php
+add_replace('html_process_css_files', function ($links) {
+    return $links;
+}, G5_HOOK_DEFAULT_PRIORITY, 1);
+```
+
+### html_process_script_files <Badge type="info" text="Replace" />
+
+```php
+add_replace('html_process_script_files', function ($links) {
+    return $links;
+}, G5_HOOK_DEFAULT_PRIORITY, 1);
+```
+
+### html_process_add_meta <Badge type="info" text="Replace" />
+
 ### html_process_buffer <Badge type="info" text="Replace" /> <Badge type="warning" text="Since v5.5.8.2.6" />
 
 HTML 응답을 출력하기 전에 실행된다. 최종 출력되는 HTML 코드가 `$buffer` 변수에 담겨있으며, 이 값을 변경하여 출력 결과를 변경할 수 있다.
@@ -157,17 +234,29 @@ HTMLPurifier에서 `<iframe>` 태그를 허용할 때 특정 도메인에 대해
 ```php
 /**
  * @param array $domains 허용된 도메인 목록
+ * @param string $html 필터링 요청된 HTML 코드. HTMLPurifier가 필터링하기 전 이므로 원본 HTML이다
  */
 add_replace('html_purifier_safeiframes', function ($domains, $html) {
     /*
     예시: 허용 도메인 추가
     호스트 네임만 추가하고 끝에 `/`를 붙이는 것을 권장
     */
-    $domains[] = 'www.youtube.com/';
+    $domains[] = 'www\.youtube\.com/';
 
     return $domains;
 }, G5_HOOK_DEFAULT_PRIORITY, 2);
 ```
+
+::: tip
+이 도메인 목록은 정규표현식이 일부로써 사용되므로 `.` 문자 및 delimiter로 사용되는 `%`를 이스케이프 처리를 해야 한다.
+
+필요에 따라 정규표현식을 사용할 수 있다.
+
+```php
+$domains[] = 'www\.youtube(?:-nocookie)?\.com/';
+```
+
+:::
 
 ### html_purifier_config <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.1" />
 
@@ -483,11 +572,119 @@ $siteview['menus']['admin_member_point']; // 포인트 내역
 
 ### admin_member_form_update <Badge type="info" text="Event" />
 
-### admin_member_form_add <Badge type="info" text="Event" />
+관리페이지에서 회원을 추가하거나 정보를 수정한 후 실행된다.
 
-### admin_member_form_after <Badge type="info" text="Event" />
+```php
+/**
+ * @param array $w 모드. 빈 값이면 새로운 회원 추가, 'u'이면 기존 회원의 정보 수정
+ * @param array $mb_id 회원 아이디
+ */
+add_event('admin_member_form_update', function ($w, $mb_id) {
+    if ($w === '') {
+        // ... 새로운 회원 추가 할 때
+    } else if ($w === 'u') {
+        // ... 기존 회원 정보 수정 일 때
+    }
+}, G5_HOOK_DEFAULT_PRIORITY, 2);
+```
 
-### admin_member_list_update <Badge type="info" text="Event" />
+### get_mb_icon_name <Badge type="info" text="Replace" />
+
+## 관리페이지
+
+### 회원관리
+
+#### admin_member_form_add <Badge type="info" text="Event" />
+
+관리페이지 회원 추가 및 정보 수정 페이지에 폼 구성요소를 추가할 수 있다.
+
+```php
+/**
+ * @param array $mb 회원 정보
+ * @param string $w 모드. 빈 값이면 새로운 회원 추가, 'u'이면 기존 회원의 정보 수정
+ * @param string $mode 폼 구성요소의 출력 방식. 기본 값은 'table'
+ */
+add_event('admin_member_form_add', function ($mb = [], $w = '', $mode = 'table') {
+    // 예시: 회원 추가/수정 폼에 추가할 구성요소
+    include_once('/path/to/my_custom_form.php');
+}, G5_HOOK_DEFAULT_PRIORITY, 3);
+```
+
+::: tip
+이 Hook은 `<tbody>` 태그 안에서 실행되므로 `<tr>` 태그로 감싼 테이블 구성 요소를 출력해야 한다.
+
+<!-- prettier-ignore -->
+```html
+<tr>
+    <th><label>커스텀 필드1</label></th>
+    <td><input type="text" name="mb_custom_field1" /></td>
+    <th><label>커스텀 필드2</label></th>
+    <td><input type="text" name="mb_custom_field2" /></td>
+</tr>
+```
+
+:::
+
+::: info 활용 예
+
+- 회원정보에 커스텀 필드를 추가
+
+:::
+
+#### admin_member_form_after <Badge type="info" text="Event" />
+
+`admin_member_form_add` Hook이 폼에 커스텀 필드를 추가할 때 사용된다면, 이 Hook은 form 밖에서 실행되며, 필요한 스크립트나 CSS 코드를 출력할 때 활용할 수 있다.
+
+```php
+/**
+ * @param array $mb 회원 정보
+ * @param string $w 모드. 빈 값이면 새로운 회원 추가, 'u'이면 기존 회원의 정보 수정
+ */
+add_event('admin_member_form_after', function ($mb, $w) {
+    // 예시: 회원정보에 커스텀 필드를 추가할 때 필요한 스크립트
+    echo '<script src="/path/to/my_custom_script.js"></script>';
+}, G5_HOOK_DEFAULT_PRIORITY, 2);
+```
+
+#### admin_member_list_update <Badge type="info" text="Event" />
+
+### adm_auth_delete_member <Badge type="info" text="Event" />
+
+### adm_auth_update <Badge type="info" text="Event" />
+
+### admin_config_form_update <Badge type="info" text="Event" />
+
+### admin_content_created <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
+
+### admin_content_updated <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
+
+### admin_content_deleted <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
+
+### admin_mail_deleted <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
+
+### admin_mail_created <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
+
+### admin_mail_updated <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
+
+### admin_newwin_created <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
+
+### admin_newwin_updated <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
+
+### admin_newwin_deleted <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
+
+### admin_menu_list_update <Badge type="info" text="Event" />
+
+### adm_theme_update <Badge type="info" text="Event" />
+
+### admin_get_page\_\* <Badge type="info" text="Event" />
+
+### admin_request_handler\_\* <Badge type="info" text="Event" />
+
+### adm_index_addtional_content_before <Badge type="info" text="Replace" /> <Badge type="warning" text="Since v5.5.9" />
+
+### adm_index_addtional_content_after <Badge type="info" text="Replace" /> <Badge type="warning" text="Since v5.5.9" />
+
+## 회원 가입
 
 ### register_member_chk_captcha <Badge type="info" text="Replace" />
 
@@ -517,13 +714,9 @@ $siteview['menus']['admin_member_point']; // 포인트 내역
 
 ### register_form_after <Badge type="info" text="Event" />
 
-### get_mb_icon_name <Badge type="info" text="Replace" />
-
 ## 쪽지
 
 ### memo_list <Badge type="info" text="Event" />
-
-<!-- 이건 대체 왜 있는 Hook 일까... -->
 
 ### memo_delete <Badge type="info" text="Event" />
 
@@ -588,11 +781,59 @@ add_event('bbs_good_after', function ($bo_table, $wr_id, $type) {
 
 ### get_board_names_cache <Badge type="info" text="Replace" />
 
-### get_board_db_cache <Badge type="info" text="Replace" />
-
 ### get_board_db <Badge type="info" text="Replace" />
 
+게시판 설정 등 게시판의 정보를 가져올 때 실행된다.
+
+<!--
+```php
+/**
+ * @param array<any> $board 게시판 정보 데이터
+ * @param string $bo_table 게시판 ID
+ */
+add_replace('get_board_db', function ($board, $bo_table) {
+    // 예시: 게시판 제목이 일부 문자열 추가
+    $board['bo_subject'] .= $board['bo_subject'] . ' 게시판';
+
+    return $board;
+}, G5_HOOK_DEFAULT_PRIORITY, 2);
+```
+-->
+
+::: warning 이 Hook은 제대로 동작하지 않음
+이 Hook은 코드 구현의 문제로 인해 `$board` 파라미터가 항상 빈 배열을 전달받는다.
+:::
+
+### get_board_db_cache <Badge type="info" text="Replace" />
+
 ### get_bo_table_banned_word <Badge type="info" text="Replace" />
+
+게시판을 생성할 떄 사용을 제한할 문자열을 추가할 수 있다.
+
+```php
+/**
+ * @param array<string> $folders 제한할 문자열 목록
+ */
+add_replace('get_bo_table_banned_word', function ($folders) {
+    // 예시: 게시판 ID에 제한할 문자열 추가
+    $folders[] = 'rss';
+    $folders[] = 'vendor';
+
+    return $folders;
+}, G5_HOOK_DEFAULT_PRIORITY, 1);
+```
+
+::: details 이미 제한하고 있는 게시판 아이디
+
+그누보드가 설치된 루트에 있는 폴더명은 게시판 ID로 사용할 수 없다.
+
+|        |         |      |       |        |
+| ------ | ------- | ---- | ----- | ------ |
+| adm    | bbs     | css  | data  | extend |
+| img    | install | js   | lib   | mobile |
+| plugin | shop    | skin | theme |        |
+
+:::
 
 ### get_board_sort_fields <Badge type="info" text="Replace" />
 
@@ -622,6 +863,11 @@ add_event('bbs_delete', function ($write, $board) {
 ```
 
 ### bbs_delete_all <Badge type="info" text="Event" />
+
+```php
+add_event('bbs_delete_all', function ($tmp_array, $board) {
+}, G5_HOOK_DEFAULT_PRIORITY, 2);
+```
 
 ### download_file_header <Badge type="info" text="Event" />
 
@@ -685,7 +931,7 @@ add_event('bbs_delete', function ($write, $board) {
 
 ## 인증/권한
 
-### is_admin <Badge type="info" text="Replace" /> <Badge type="danger" text="DO NOT USE" />
+### is_admin <Badge type="info" text="Replace" />
 
 ::: danger 사용하지 않는 것을 권장
 이 Hook은 `is_admin()` 함수가 반환하는 값을 변경할 수 있지만 그누보드의 권한 처리에 심각한 영향을 줄 수 있으므로 사용하지 않는 것을 권장한다.
@@ -721,14 +967,6 @@ if (is_admin($member['mb_id']) === 'group') {
  */
 add_replace('is_admin', function ($is_authority, $mb_id) {
     // 예시: 관리자 권한을 변경
-    if (!$is_authority) {
-        $condition = false;
-        if ($condition === true) {
-            $is_authority = 'manager';
-        }
-    }
-
-    // 또는
     if ($is_authority !== 'super') {
         $condition = false;
         if ($condition === true) {
@@ -814,38 +1052,6 @@ add_replace('is_admin', function ($is_authority, $mb_id) {
 
 ## Event
 
-### adm_auth_delete_member <Badge type="info" text="Event" />
-
-### adm_auth_update <Badge type="info" text="Event" />
-
-### admin_config_form_update <Badge type="info" text="Event" />
-
-### admin_content_created <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
-
-### admin_content_updated <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
-
-### admin_content_deleted <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
-
-### admin_mail_deleted <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
-
-### admin_mail_created <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
-
-### admin_mail_updated <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
-
-### admin_newwin_created <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
-
-### admin_newwin_updated <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
-
-### admin_newwin_deleted <Badge type="info" text="Event" /> <Badge type="warning" text="Since v5.5.8.3.2" />
-
-### admin_menu_list_update <Badge type="info" text="Event" />
-
-### adm_theme_update <Badge type="info" text="Event" />
-
-### admin_request_handler\_\* <Badge type="info" text="Event" />
-
-### admin_get_page\_\* <Badge type="info" text="Event" />
-
 ### password_lost_certify_before <Badge type="info" text="Event" />
 
 ### password_lost_certify_after <Badge type="info" text="Event" />
@@ -857,10 +1063,6 @@ add_replace('is_admin', function ($is_authority, $mb_id) {
 ### is_animated_gif_after <Badge type="info" text="Event" />
 
 ## Replace
-
-### adm_index_addtional_content_before <Badge type="info" text="Replace" /> <Badge type="warning" text="Since v5.5.9" />
-
-### adm_index_addtional_content_after <Badge type="info" text="Replace" /> <Badge type="warning" text="Since v5.5.9" />
 
 ### get_editor_upload_url <Badge type="info" text="Replace" /> <Badge type="warning" text="Updated v5.5.8.3.2" />
 
@@ -926,14 +1128,6 @@ add_replace('is_admin', function ($is_authority, $mb_id) {
 
 ### ss_mb_key_user_agent <Badge type="info" text="Replace" /> <Badge type="warning" text="Since v5.5.10" />
 
-### html_process_css_files <Badge type="info" text="Replace" />
-
-### html_process_script_files <Badge type="info" text="Replace" />
-
-### html_process_add_meta <Badge type="info" text="Replace" />
-
-### googl_short_url <Badge type="info" text="Replace" /> <Badge type="danger" text="Deprecated" />
-
 ### check_url_host_before <Badge type="info" text="Replace" /> <Badge type="warning" text="Since v5.5.8.1" />
 
 ### check_same_url_host <Badge type="info" text="Replace" /> <Badge type="warning" text="Since v5.5.8.1" />
@@ -942,17 +1136,41 @@ add_replace('is_admin', function ($is_authority, $mb_id) {
 
 ### get_menu_db <Badge type="info" text="Replace" />
 
-### get_class_encrypt <Badge type="info" text="Replace" />
+사이트 메뉴 목록을 가져올 때 실행된다.
 
-### get_permission_debug_show <Badge type="info" text="Replace" />
+<!--
+```php
+/**
+ * @param array<any> $menu_list 메뉴 목록
+ * @param int $is_mobile 모바일 메뉴이면 `1`, 아니면 `0`
+ */
+add_replace('get_menu_db', function ($menu_list, $is_mobile) {
+    return $menu_list;
+}, G5_HOOK_DEFAULT_PRIORITY, 2);
+```
+-->
+
+::: warning 이 Hook은 제대로 동작하지 않음
+이 Hook은 코드 구현의 문제로 인해 항상 빈 배열을 전달받아 사실상 사용할 수 없다.
+:::
+
+### get_class_encrypt <Badge type="info" text="Replace" />
 
 ### mailer <Badge type="info" text="Replace" />
 
 ### mail_options <Badge type="info" text="Replace" />
 
+### get_editor_filename <Badge type="info" text="Replace" />
+
+## 스킨
+
 ### outlogin_content <Badge type="info" text="Replace" />
 
-### get_editor_filename <Badge type="info" text="Replace" />
+## Deprecated
+
+### googl_short_url <Badge type="info" text="Replace" /> <Badge type="danger" text="DEPRECATED" />
+
+Google URL Shortener API가 종료되어서 더 이상 사용되지 않는다.
 
 ## shop
 
