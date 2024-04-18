@@ -32,7 +32,7 @@ if (process.env.NODE_ENV === 'production') {
     }
 }
 
-export default defineConfig(deepmerge(mergeConfig, {
+export default deepmerge(mergeConfig, defineConfig({
     lang: 'ko-KR',
     titleTemplate: ':title - 그누보드5 가이드',
     description: '사용자가 직접 만드는 그누보드 안내서 ',
@@ -233,6 +233,9 @@ export default defineConfig(deepmerge(mergeConfig, {
         config(md) {
             md.use(tabsMarkdownPlugin);
             md.use(timeline);
-        }
+        },
     },
 }));
+
+
+
