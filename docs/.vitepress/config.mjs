@@ -206,6 +206,16 @@ export default deepmerge(mergeConfig, defineConfig({
         search: {
             provider: 'local'
         },
+
+        lastUpdated: {
+            formatOptions: {
+                dateStyle: 'long',
+                timeStyle: undefined,
+            }
+        },
+
+        externalLinkIcon: true,
+
         editLink: {
             pattern: 'https://github.com/g5guide/g5guide.github.io/edit/main/docs/:path',
             text: '이 페이지 수정하기'

@@ -1,10 +1,9 @@
-import { h, watch } from 'vue'
+import { h, watch, toRefs } from 'vue'
+import { useData, useRoute } from 'vitepress';
 import DefaultTheme from 'vitepress/theme'
-import Comment from './Comment.vue'
 import { enhanceAppWithTabs } from 'vitepress-plugin-tabs/client'
+import giscusTalk from 'vitepress-plugin-comment-with-giscus';
 import googleAnalytics from 'vitepress-plugin-google-analytics'
-
-import { useData, useRoute, useRouter } from 'vitepress';
 
 import './style.css'
 import "vitepress-markdown-timeline/dist/theme/index.css";
@@ -20,37 +19,35 @@ export default {
         })
     },
     Layout() {
-        const { isDark } = useData();
-        const route = useRoute();
-        const router = useRouter();
-
-        if (process.env.NODE_ENV === 'production') {
-            watch(route, (path) => {
-                const el = document.querySelector('giscus-widget');
-                if (el) {
-                    el.update();
-                }
-
-                if (window.gtag) {
-                    gtag('send', 'pageview', path);
-                }
-            }, { immediate: true });
-
-            watch(isDark, (dark) => {
-                const el = document.querySelector('giscus-widget');
-                if (el) {
-                    el.theme = dark ? 'transparent_dark' : 'light';
-                }
-            });
-
-            return h(DefaultTheme.Layout, null, {
-                'doc-footer-before': () => h(Comment, { theme: isDark.value ? 'transparent_dark' : 'light' })
-            })
-        }
-
         return h(DefaultTheme.Layout, null, {
-            'doc-footer-before': () => h('p', { style: 'text-align: center; font-size: 0.625rem;' }, ['댓글 출력 위치. (docs:dev 환경에서는 댓글을 출력하지 않음)'])
         });
+    },
+    setup() {
+        // Get frontmatter and route
+        const { frontmatter } = toRefs(useData());
+        const route = useRoute();
+
+        // Obtain configuration from: https://giscus.app/
+        giscusTalk({
+            repo: 'g5guide/g5guide.github.io',
+            repoId: 'R_kgDOJ55vGA',
+            category: 'Comments', // default: `General`
+            categoryId: 'DIC_kwDOJ55vGM4CX0n5',
+            mapping: 'pathname', // default: `pathname`
+            inputPosition: 'top', // default: `top`
+            lang: 'ko', // default: `zh-CN`
+            lightTheme: 'light', // default: `light`
+            darkTheme: 'transparent_dark', // default: `transparent_dark`
+            // ...
+        }, {
+            frontmatter, route
+        },
+            // Whether to activate the comment area on all pages.
+            // The default is true, which means enabled, this parameter can be ignored;
+            // If it is false, it means it is not enabled.
+            // You can use `comment: true` preface to enable it separately on the page.
+            true
+        );
     }
 }
 
