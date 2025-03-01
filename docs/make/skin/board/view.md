@@ -1,6 +1,8 @@
-# 게시판 글 내용 보기 스킨
+---
+head:
+  - - meta
+    - http-equiv: refresh
+      content: 0; url=https://damoang-users.github.io/gnuboard5-guide/make/skin/board/view.html
+---
 
-- view.head.skin.php
-- view.skin.php
-- view.tail.skin.php
-
+[변경된 주소로 바로가기](https://damoang-users.github.io/gnuboard5-guide/make/skin/board/view.html)

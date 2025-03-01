@@ -2,6 +2,10 @@
 title: 그누보드5 가이드
 description: 개발사가 안 만들어서 사용자가 직접 만드는 그누보드 안내서
 layout: home
+head:
+  - - meta
+    - http-equiv: refresh
+      content: 0; url=https://damoang-users.github.io/gnuboard5-guide/
 hero:
   name: GNUBOARD 5 Guide
   text: 그누보드5 가이드
@@ -32,3 +36,5 @@ features:
     details: (작성 중) 플러그인 제작 가이드
     link: /developers/make_plugin
 ---
+
+[변경된 주소로 바로가기](https://damoang-users.github.io/gnuboard5-guide/)

@@ -1,11 +1,8 @@
 ---
 head:
-  - - link
-    - name: canonical
-      content: https://g5guide.github.io/developers/test.html
+  - - meta
+    - http-equiv: refresh
+      content: 0; url=https://damoang-users.github.io/gnuboard5-guide/developers/test.html
 ---
-# 테스트
 
-그누보드는 자체 동작을 젼혀 테스트하지 않는다.
-
-테스트 도구 통합을 위한 환경을 제공하지 않는다.
+[변경된 주소로 바로가기](https://damoang-users.github.io/gnuboard5-guide/developers/test.html)
